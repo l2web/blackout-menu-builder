@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import DrinkSelector from "@/components/DrinkSelector";
+import { generatePDF } from "@/utils/pdfGenerator";
 
 const menuFormSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
