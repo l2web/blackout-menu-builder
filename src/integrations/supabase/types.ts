@@ -9,7 +9,96 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      drinks: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          image_url: string | null
+          is_alcoholic: boolean
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          image_url?: string | null
+          is_alcoholic?: boolean
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_alcoholic?: boolean
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      menu_drinks: {
+        Row: {
+          created_at: string | null
+          display_order: number
+          drink_id: string | null
+          id: string
+          menu_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order: number
+          drink_id?: string | null
+          id?: string
+          menu_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number
+          drink_id?: string | null
+          id?: string
+          menu_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_drinks_drink_id_fkey"
+            columns: ["drink_id"]
+            isOneToOne: false
+            referencedRelation: "drinks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_drinks_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menus: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
