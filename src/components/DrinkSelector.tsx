@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,29 +51,41 @@ const DrinkSelector = ({
   }, []);
 
   const toggleAlcoholicDrink = (drinkId: string) => {
+    console.log("Toggling Alcoholic Drink:", drinkId);
+    console.log("Current selectedAlcoholic:", selectedAlcoholic);
     if (selectedAlcoholic.includes(drinkId)) {
       const newSelected = selectedAlcoholic.filter(id => id !== drinkId);
       setSelectedAlcoholic(newSelected);
       onAlcoholicDrinksSelected(newSelected);
+      console.log("After removing, selectedAlcoholic:", newSelected);
     } else {
       if (selectedAlcoholic.length < alcoholicCount) {
         const newSelected = [...selectedAlcoholic, drinkId];
         setSelectedAlcoholic(newSelected);
         onAlcoholicDrinksSelected(newSelected);
+        console.log("After adding, selectedAlcoholic:", newSelected);
+      } else {
+        console.log("Cannot add, limit reached:", alcoholicCount);
       }
     }
   };
 
   const toggleNonAlcoholicDrink = (drinkId: string) => {
+    console.log("Toggling Non-Alcoholic Drink:", drinkId);
+    console.log("Current selectedNonAlcoholic:", selectedNonAlcoholic);
     if (selectedNonAlcoholic.includes(drinkId)) {
       const newSelected = selectedNonAlcoholic.filter(id => id !== drinkId);
       setSelectedNonAlcoholic(newSelected);
       onNonAlcoholicDrinksSelected(newSelected);
+      console.log("After removing, selectedNonAlcoholic:", newSelected);
     } else {
       if (selectedNonAlcoholic.length < nonAlcoholicCount) {
         const newSelected = [...selectedNonAlcoholic, drinkId];
         setSelectedNonAlcoholic(newSelected);
         onNonAlcoholicDrinksSelected(newSelected);
+        console.log("After adding, selectedNonAlcoholic:", newSelected);
+      } else {
+        console.log("Cannot add, limit reached:", nonAlcoholicCount);
       }
     }
   };
@@ -98,7 +109,7 @@ const DrinkSelector = ({
                 <CardContent className="p-4 flex items-start gap-3">
                   <Checkbox 
                     checked={selectedAlcoholic.includes(drink.id)}
-                    onCheckedChange={() => toggleAlcoholicDrink(drink.id)}
+                    onClick={(e) => e.stopPropagation()}
                     disabled={!selectedAlcoholic.includes(drink.id) && selectedAlcoholic.length >= alcoholicCount}
                   />
                   <div>
@@ -129,7 +140,7 @@ const DrinkSelector = ({
                 <CardContent className="p-4 flex items-start gap-3">
                   <Checkbox 
                     checked={selectedNonAlcoholic.includes(drink.id)}
-                    onCheckedChange={() => toggleNonAlcoholicDrink(drink.id)}
+                    onClick={(e) => e.stopPropagation()}
                     disabled={!selectedNonAlcoholic.includes(drink.id) && selectedNonAlcoholic.length >= nonAlcoholicCount}
                   />
                   <div>
