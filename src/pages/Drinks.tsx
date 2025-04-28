@@ -8,7 +8,14 @@ import { Wine, Coffee } from "lucide-react";
 
 const Drinks = () => {
   const [isAddingDrink, setIsAddingDrink] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
+
+  const handleDrinkAdded = () => {
+    setIsAddingDrink(false);
+    // Incrementar o contador para forçar a atualização da lista
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   return (
     <div className="bg-black text-white p-8">
@@ -44,7 +51,7 @@ const Drinks = () => {
               <CardDescription>Cadastre um novo drink alcoólico ou não alcoólico</CardDescription>
             </CardHeader>
             <CardContent>
-              <DrinkForm onComplete={() => setIsAddingDrink(false)} />
+              <DrinkForm onComplete={handleDrinkAdded} />
             </CardContent>
           </Card>
         ) : null}
@@ -65,7 +72,7 @@ const Drinks = () => {
           </div>
         </div>
 
-        <DrinkList />
+        <DrinkList refreshTrigger={refreshTrigger} />
       </div>
     </div>
   );

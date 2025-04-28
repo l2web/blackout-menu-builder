@@ -26,7 +26,11 @@ interface Drink {
   updated_at?: string | null;
 }
 
-const DrinkList = () => {
+interface DrinkListProps {
+  refreshTrigger?: number;
+}
+
+const DrinkList = ({ refreshTrigger = 0 }: DrinkListProps) => {
   const [drinks, setDrinks] = useState<Drink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +40,7 @@ const DrinkList = () => {
   useEffect(() => {
     const fetchDrinks = async () => {
       try {
+        setIsLoading(true);
         const { data, error } = await supabase.from("drinks").select("*");
 
         if (error) {
@@ -73,7 +78,7 @@ const DrinkList = () => {
     };
 
     fetchDrinks();
-  }, []);
+  }, [refreshTrigger]);
 
   // Filtrar bebidas com base na presença de imagem
   const alcoholicDrinks = drinks.filter((drink) => !!drink.image_url);

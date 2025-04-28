@@ -17,7 +17,6 @@ interface DrinkFormData {
   name: string;
   description: string;
   is_alcoholic: boolean;
-  ingredientsList: string;
   image?: FileList;
 }
 
@@ -25,7 +24,6 @@ const DrinkForm = ({ onComplete }: DrinkFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<DrinkFormData>({
     defaultValues: {
-      ingredientsList: "",
       is_alcoholic: true
     }
   });
@@ -60,21 +58,13 @@ const DrinkForm = ({ onComplete }: DrinkFormProps) => {
         image_url = publicUrl;
       }
 
-      // Processar ingredientes de texto para array
-      const ingredientsArray = data.ingredientsList
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line !== '')
-        .map(ingredient => ({ name: ingredient, quantity: '' }));
-
       const { error } = await supabase
         .from('drinks')
         .insert({
           name: data.name,
           description: data.description,
           is_alcoholic: isAlcoholic,
-          image_url,
-          ingredients: ingredientsArray.length > 0 ? ingredientsArray : null
+          image_url
         });
 
       if (error) throw error;
@@ -151,22 +141,6 @@ const DrinkForm = ({ onComplete }: DrinkFormProps) => {
           className="bg-zinc-800 border-zinc-700"
         />
         {errors.description && <p className="text-sm text-red-500 mt-1">Descrição é obrigatória</p>}
-      </div>
-
-      <div>
-        <Label htmlFor="ingredientsList">Ingredientes</Label>
-        <p className="text-xs text-zinc-500 mb-2">Digite um ingrediente por linha</p>
-        <Textarea 
-          id="ingredientsList" 
-          {...register("ingredientsList", { required: true })}
-          className="bg-zinc-800 border-zinc-700 min-h-[120px]"
-          placeholder="Ex:
-Suco de limão
-Açúcar
-Hortelã
-Água com gás"
-        />
-        {errors.ingredientsList && <p className="text-sm text-red-500 mt-1">Pelo menos um ingrediente é obrigatório</p>}
       </div>
 
       {isAlcoholic && (
