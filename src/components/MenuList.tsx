@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { generatePDFV2 } from "@/utils/pdfGenerator";
+import { generatePDFV3, cleanupPreviousPdfs } from "@/utils/pdfGeneratorV3";
 import { deleteMenuViaRPC } from "@/utils/deleteMenuRPC";
 
 interface Menu {
@@ -105,6 +105,19 @@ const MenuList = () => {
     fetchMenus();
   }, []);
 
+  // Função que limpa cache e só depois gera o PDF
+  const generatePDFWithCleanup = async (menuName: string, menuDrinks: any[], menuId?: string) => {
+    console.log(`🧹 Limpando cache antes de gerar PDF para: ${menuName}`);
+    // Limpar qualquer cache existente antes
+    cleanupPreviousPdfs();
+    
+    // Adicionar pequeno delay para garantir limpeza
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Gerar o PDF com a nova versão
+    return generatePDFV3(menuName, menuDrinks, menuId);
+  }
+
   const handleGeneratePDF = async (menuId: string, menuName: string) => {
     try {
       // Buscar todos os drinks do menu com detalhes
@@ -136,7 +149,7 @@ const MenuList = () => {
       toast.loading("Gerando o PDF do cardápio, aguarde...");
 
       // Gerar PDF e fazer download diretamente
-      await generatePDFV2(menuName, menuDrinks, menuId);
+      await generatePDFWithCleanup(menuName, menuDrinks, menuId);
       
       toast.dismiss();
       toast.success("PDF gerado com sucesso! Verifique o download.");

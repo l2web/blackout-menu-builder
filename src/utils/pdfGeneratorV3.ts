@@ -21,7 +21,7 @@ let previousPdfUrls: string[] = [];
 // Função global para gerar o PDF
 declare global {
   interface Window {
-    generatePDF: (menuName: string, menuDrinks: MenuDrink[], menuId?: string) => Promise<string>;
+    generatePDFV3: (menuName: string, menuDrinks: MenuDrink[], menuId?: string) => Promise<string>;
     previousPdfUrl?: string | null; // Para compatibilidade com implementações existentes
   }
 }
@@ -82,14 +82,14 @@ const forceDownload = (blob: Blob, filename: string): void => {
 // Função auxiliar para limpar URLs de PDFs anteriores
 // Esta função deve ser chamada antes de iniciar uma nova geração
 export const cleanupPreviousPdfs = (): void => {
-  console.log(`Limpando ${previousPdfUrls.length} URLs de PDFs anteriores`);
+  console.log(`V3: Limpando ${previousPdfUrls.length} URLs de PDFs anteriores`);
   
   // Revogar todas as URLs anteriores
   previousPdfUrls.forEach(url => {
     try {
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.warn('Falha ao revogar URL anterior:', e);
+      console.warn('V3: Falha ao revogar URL anterior:', e);
     }
   });
   
@@ -102,7 +102,7 @@ export const cleanupPreviousPdfs = (): void => {
       URL.revokeObjectURL(window.previousPdfUrl);
       window.previousPdfUrl = null;
     } catch (e) {
-      console.warn('Falha ao revogar URL global anterior:', e);
+      console.warn('V3: Falha ao revogar URL global anterior:', e);
     }
   }
   
@@ -118,33 +118,36 @@ export const cleanupPreviousPdfs = (): void => {
       try {
         URL.revokeObjectURL(url);
       } catch (e) {
-        console.warn('Falha ao revogar URL de recurso:', e);
+        console.warn('V3: Falha ao revogar URL de recurso:', e);
       }
     });
   } catch (e) {
-    console.warn('Erro ao limpar cache de blobs:', e);
+    console.warn('V3: Erro ao limpar cache de blobs:', e);
   }
 };
 
-// Renomeando a função para forçar novos imports e evitar cache
-export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], menuId?: string): Promise<string> => {
+// Função principal para gerar PDF - VERSÃO 3 COMPLETAMENTE RENOVADA
+export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], menuId?: string): Promise<string> => {
+  // Adicionar distintivo de versão para debug
+  console.log(`🔄 VERSÃO V3 🔄 - Gerando PDF para menu "${menuName}"`);
+  
   // Limpar URLs anteriores primeiro
   cleanupPreviousPdfs();
   
   // Gerar hash único para esta geração de PDF
   const pdfHash = generateUniqueHash();
-  console.log(`Gerando novo PDF para menu: ${menuName} com hash: ${pdfHash}`);
+  console.log(`V3: Gerando novo PDF para menu: ${menuName} com hash: ${pdfHash}`);
   
   // Configuração do documento
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   
   // Adicionar metadados ao PDF
   doc.setProperties({
-    title: `Cardápio ${menuName}`,
+    title: `Cardápio ${menuName} (V3)`,
     subject: 'Menu de Drinks',
-    creator: 'Blackout Drink Builder',
+    creator: 'Blackout Drink Builder V3',
     author: 'Sistema Automatizado',
-    keywords: `menu, drinks, ${pdfHash}`,
+    keywords: `menu, drinks, ${pdfHash}, v3`,
   });
   
   // Dimensões da página
@@ -159,8 +162,8 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
   // Carregar a fonte Felix
   let felixFontBase64 = '';
   try {
-    const fontCacheKey = `felix_${pdfHash}`;
-    const response = await fetch(`/felix.ttf?hash=${pdfHash}`);
+    const cacheBreaker = `${pdfHash}_${Date.now()}`;
+    const response = await fetch(`/felix.ttf?nocache=${cacheBreaker}`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const fontBlob = await response.blob();
     felixFontBase64 = await blobToBase64(fontBlob);
@@ -170,13 +173,26 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
     // Adicionar a fonte Felix ao PDF
     doc.addFileToVFS('Felix.ttf', base64Font);
     doc.addFont('Felix.ttf', 'Felix', 'normal');
+    console.log("V3: Fonte Felix carregada com sucesso");
   } catch (error) {
-    console.error("Não foi possível carregar a fonte Felix:", error);
+    console.error("V3: Não foi possível carregar a fonte Felix:", error);
   }
   
   // Separar drinks por tipo
-  const alcoholicDrinks = menuDrinks.filter(item => item.drinks.is_alcoholic || item.drinks.image_url);
-  const nonAlcoholicDrinks = menuDrinks.filter(item => !item.drinks.is_alcoholic && !item.drinks.image_url);
+  // Nova lógica: drinks com imagem são alcoólicos, drinks sem imagem são não alcoólicos
+  // Independente do valor de is_alcoholic
+  const alcoholicDrinks = menuDrinks.filter(item => !!item.drinks.image_url);
+  const nonAlcoholicDrinks = menuDrinks.filter(item => !item.drinks.image_url);
+  
+  // Log para diagnóstico
+  console.log("V3: Valores dos drinks para debug:", menuDrinks.map(item => ({
+    name: item.drinks.name,
+    is_alcoholic: item.drinks.is_alcoholic,
+    has_image: !!item.drinks.image_url,
+    categoria_no_pdf: !!item.drinks.image_url ? "alcoólico" : "não-alcoólico"
+  })));
+  
+  console.log(`V3: Drinks alcoólicos: ${alcoholicDrinks.length}, Não-alcoólicos: ${nonAlcoholicDrinks.length}`);
   
   // Calcular espaço disponível
   const availableHeight = pageHeight - headerSpace - footerSpace;
@@ -208,7 +224,7 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
   // Tamanhos de fonte ajustados para caber mais conteúdo
   const nameFontSize = 12; // Tamanho fixo para nomes
   const descFontSize = 8;  // Tamanho fixo para descrições
-  const nonAlcNameFontSize = 14; // Tamanho maior para nomes de drinks não alcoólicos
+  const nonAlcNameFontSize = 12; // Reduzido de 14 para 12 para economizar espaço
   
   // Tamanho da imagem otimizado
   const imageSize = Math.min(45, spacePerAlcItem * 0.85); // Imagem menor para caber mais itens
@@ -218,13 +234,14 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
   
   // Carregar imagem de fundo
   try {
-    const backgroundCacheKey = `background_${pdfHash}`;
-    const response = await fetch(`/fundo_menu.png?hash=${pdfHash}`);
+    const cacheBreaker = `${pdfHash}_${Date.now()}`;
+    const response = await fetch(`/fundo_menu.png?nocache=${cacheBreaker}`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const imageBlob = await response.blob();
     backgroundImageBase64 = await blobToBase64(imageBlob);
+    console.log("V3: Imagem de fundo carregada com sucesso");
   } catch (error) {
-    console.error("Não foi possível carregar a imagem de fundo:", error);
+    console.error("V3: Não foi possível carregar a imagem de fundo:", error);
   }
   
   // Pré-carregar imagens dos drinks (usando hash para identificação)
@@ -234,18 +251,21 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
     .filter(item => item.drinks.image_url)
     .map(async (item) => {
       try {
-        const imageCacheKey = `drink_${item.drinks.id}_${pdfHash}`;
-        const imageUrl = `${item.drinks.image_url}?hash=${pdfHash}`;
+        const cacheBreaker = `${pdfHash}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const imageUrl = `${item.drinks.image_url}?nocache=${cacheBreaker}`;
+        console.log(`V3: Carregando imagem para drink ${item.drinks.name}: ${imageUrl}`);
+        
         const response = await fetch(imageUrl);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const blob = await response.blob();
         drinkImagesBase64[item.drinks.id] = await blobToBase64(blob);
       } catch (error) {
-        console.error(`Erro ao carregar imagem do drink ${item.drinks.name}:`, error);
+        console.error(`V3: Erro ao carregar imagem do drink ${item.drinks.name}:`, error);
       }
     });
   
   await Promise.all(imageLoadPromises);
+  console.log(`V3: ${Object.keys(drinkImagesBase64).length} imagens de drinks carregadas`);
   
   // Adicionar fundo
   if (backgroundImageBase64) {
@@ -300,7 +320,7 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
         const imageFormat = formatMatch ? formatMatch[1].toUpperCase() : 'PNG';
         doc.addImage(drinkImageBase64, imageFormat, imageX, y, imageSize, imageSize);
       } catch (error) {
-        console.error(`Erro ao adicionar imagem ${drink.name}:`, error);
+        console.error(`V3: Erro ao adicionar imagem ${drink.name}:`, error);
       }
     }
     
@@ -325,10 +345,6 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
     // Altura do nome
     const nameHeight = nameLines.length * (nonAlcNameFontSize * 0.5);
     
-    // Desenhar uma pequena decoração antes do nome
-    doc.circle(centerX - (nameWidth / 4), y - 2, 1, 'F');
-    doc.circle(centerX + (nameWidth / 4), y - 2, 1, 'F');
-    
     // Desenhar nome (centralizado) com destaque
     doc.setTextColor(0, 0, 0);
     doc.text(nameLines, centerX, y, { align: 'center' });
@@ -340,23 +356,20 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
     
     // Limitar a descrição conforme necessário
     let drinkDesc = drink.description;
+    // Opcionalmente, limitar tamanho da descrição para economizar espaço
+    if (drinkDesc.length > 100) {
+      drinkDesc = drinkDesc.substring(0, 97) + "...";
+    }
     
     // Quebrar texto da descrição
     const descWidth = contentWidth * 0.6; // Reduzindo um pouco para melhor estética
     const descLines = doc.splitTextToSize(drinkDesc, descWidth);
     
-    // Desenhar descrição (centralizada)
-    doc.text(descLines, centerX, y + nameHeight + 5, { align: 'center' });
+    // Desenhar descrição (centralizada) - reduzir espaço entre nome e descrição
+    doc.text(descLines, centerX, y + nameHeight + 3, { align: 'center' }); // Reduzido de 5 para 3
     
-    // Desenhar uma linha sutil abaixo do drink
-    if (descLines.length > 0) {
-      const lineY = y + nameHeight + 5 + (descLines.length * (descFontSize * 0.5)) + 5;
-      doc.setLineWidth(0.2);
-      doc.line(centerX - 30, lineY, centerX + 30, lineY);
-    }
-    
-    // Retornar a altura aproximada usada por este drink
-    return nameHeight + descLines.length * (descFontSize * 0.5) + 15; // Aumentei o espaço
+    // Reduzir a altura retornada para compactar o layout ainda mais
+    return nameHeight + descLines.length * (descFontSize * 0.5) + 6; // Reduzido de 10 para 6
   };
   
   // Começar a renderizar
@@ -399,28 +412,25 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
   
   // Renderizar drinks não alcoólicos com o título centralizado
   if (nonAlcoholicDrinks.length > 0) {
+    // Aproximar mais os drinks não alcoólicos dos alcoólicos
+    currentY -= 20; // Diminuir em 20 unidades (antes era 15)
+  
     // Adicionar título centralizado "- DRINKS NÃO ALCOÓLICOS -"
-    doc.setFontSize(16); // Aumento o tamanho da fonte para dar mais destaque
+    doc.setFontSize(12); // Reduzido para 12 (antes era 14)
     // Usar a fonte Felix para o título
     doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
-    
-    // Adicionar uma linha decorativa acima do título
-    const titleLineWidth = 60; // Comprimento da linha em mm
-    doc.setLineWidth(0.5);
-    doc.line((pageWidth - titleLineWidth) / 2, currentY - 5, (pageWidth + titleLineWidth) / 2, currentY - 5);
     
     // Desenhar o título centralizado
     doc.text("— DRINKS NÃO ALCOÓLICOS —", pageWidth / 2, currentY, { align: 'center' });
     
-    // Adicionar uma linha decorativa abaixo do título
-    doc.line((pageWidth - titleLineWidth) / 2, currentY + 5, (pageWidth + titleLineWidth) / 2, currentY + 5);
+    // Reduzir o espaço após o título
+    currentY += 6; // Reduzido para 6 (antes era 8)
     
-    currentY += 25; // Aumentado o espaço após o título
-    
-    // Renderizar cada drink não alcoólico centralizado
-    nonAlcoholicDrinks.forEach((item) => {
+    // Renderizar cada drink não alcoólico centralizado com menos espaço entre eles
+    nonAlcoholicDrinks.forEach((item, index) => {
       const drinkHeight = drawNonAlcoholicDrink(item.drinks, currentY);
-      currentY += drinkHeight + 10; // Espaço entre drinks
+      // Reduzir ainda mais o espaço entre os drinks não alcoólicos
+      currentY += drinkHeight + 2; // Reduzido para 2 (antes era 3)
     });
   }
   
@@ -429,13 +439,13 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
   doc.setFont('times', 'normal');
   doc.setTextColor(0, 0, 0);
   doc.text(`BLACKOUT DRINK BUILDER - ${new Date().toLocaleDateString('pt-BR')} - ID: ${pdfHash.substring(0, 8)}`, pageWidth / 2, pageHeight - 10, { align: "center" });
-  doc.text(`Página 1 de 1`, pageWidth - margin, pageHeight - 10, { align: "right" });
+  doc.text(`Página 1 de 1 | V3`, pageWidth - margin, pageHeight - 10, { align: "right" });
   
   // Gerar o PDF como blob
   const pdfOutput = doc.output('blob');
   
   // Gerar nome de arquivo único com hash
-  const fileName = `Cardapio_${menuName.replace(/\s+/g, '_')}_${pdfHash}.pdf`;
+  const fileName = `CardapioV3_${menuName.replace(/\s+/g, '_')}_${pdfHash}.pdf`;
   
   // Forçar o download do arquivo
   forceDownload(pdfOutput, fileName);
@@ -470,9 +480,9 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
         window.previousPdfUrl = null;
       }
       
-      console.log(`URL temporária do PDF revogada após timeout: ${tempUrl}`);
+      console.log(`V3: URL temporária do PDF revogada após timeout: ${tempUrl}`);
     } catch (e) {
-      console.warn('Erro ao revogar URL após timeout:', e);
+      console.warn('V3: Erro ao revogar URL após timeout:', e);
     }
   }, 30000); // Aumentado para 30 segundos para garantir tempo suficiente para download/visualização
   
@@ -481,7 +491,7 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
     // Criar um checksum simplificado do conteúdo do menu para verificação
     const menuChecksum = calculateStringChecksum(JSON.stringify(menuDrinks));
     
-    console.log(`PDF gerado com sucesso:
+    console.log(`V3: PDF gerado com sucesso:
     - Hash: ${pdfHash}
     - Menu: ${menuName}${menuId ? ` (ID: ${menuId})` : ''}
     - Total de drinks: ${menuDrinks.length}
@@ -497,27 +507,28 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
         timestamp: new Date().toISOString(),
         drink_count: menuDrinks.length,
         file_name: fileName,
-        checksum: menuChecksum
+        checksum: menuChecksum,
+        version: 'V3'
       };
       
       // Comentado para não executar por enquanto
       // const { data, error } = await supabase.from('pdf_generation_logs').insert(logData);
-      // if (error) console.error('Erro ao salvar log de geração:', error);
+      // if (error) console.error('V3: Erro ao salvar log de geração:', error);
     }
   } catch (e) {
-    console.warn('Erro ao registrar logs de geração do PDF:', e);
+    console.warn('V3: Erro ao registrar logs de geração do PDF:', e);
   }
   
   return tempUrl;
 };
 
 // Exportar função principal de geração
-export { generatePDFV2 as generatePDF };
+export { generatePDFV3 as generatePDF };
 
 // Exportar o objeto com a função principal e a função de limpeza
 export const pdfGenerator = {
-  generate: generatePDFV2,
+  generate: generatePDFV3,
   cleanup: cleanupPreviousPdfs
 };
 
-export default generatePDFV2;
+export default generatePDFV3; 
