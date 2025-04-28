@@ -133,7 +133,7 @@ const DrinkList = () => {
                   ) : (
                     <Coffee className="text-blue-300" size={20} />
                   )}
-                  <DialogTitle className="gold-gradient">
+                  <DialogTitle className="gold-gradient font-felix">
                     {selectedDrink.name}
                   </DialogTitle>
                 </div>

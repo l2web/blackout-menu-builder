@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Carregamento da fonte Felix */
+@font-face {
+  font-family: 'Felix';
+  src: url('/felix.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: 0 0% 9%;
@@ -106,6 +115,12 @@
     min-height: 100vh;
     background-attachment: fixed;
   }
+}
+
+/* Classe para aplicar a fonte Felix */
+.font-felix {
+  font-family: 'Felix', sans-serif;
+  letter-spacing: 0.02em;
 }
 
 /* Estilos personalizados */

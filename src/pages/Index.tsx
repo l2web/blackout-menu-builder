@@ -6,12 +6,12 @@ const Index = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="p-6">
       <div className="max-w-5xl mx-auto">
-        {/* Cabeçalho com efeito de gradiente dourado */}
+        {/* Título da aplicação */}
         <div className="text-center mb-12 mt-8">
-          <h1 className="text-5xl font-bold mb-4 gold-gradient">
-            Blackout Drink Builder
+          <h1 className="text-4xl font-bold mb-4 gold-gradient font-felix">
+            Drink Builder
           </h1>
           <p className="text-lg silver-accent max-w-2xl mx-auto">
             Design de menus sofisticados para sua coleção de drinks exclusivos
@@ -25,7 +25,7 @@ const Index = () => {
               <Wine size={80} className="text-white/60" />
             </div>
             <div className="p-6">
-              <h2 className="text-2xl font-semibold mb-2 gold-gradient">Gerenciar Drinks</h2>
+              <h2 className="text-2xl font-semibold mb-2 gold-gradient font-felix">Gerenciar Drinks</h2>
               <p className="mb-6 text-zinc-400">
                 Cadastre e gerencie drinks alcoólicos e não alcoólicos com um visual elegante e detalhado
               </p>
@@ -45,7 +45,7 @@ const Index = () => {
               <Scroll size={80} className="text-white/60" />
             </div>
             <div className="p-6">
-              <h2 className="text-2xl font-semibold mb-2 gold-gradient">Criar Menus</h2>
+              <h2 className="text-2xl font-semibold mb-2 gold-gradient font-felix">Criar Menus</h2>
               <p className="mb-6 text-zinc-400">
                 Monte menus personalizados para seus eventos com uma apresentação refinada e sofisticada
               </p>

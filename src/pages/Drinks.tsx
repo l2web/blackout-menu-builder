@@ -11,11 +11,11 @@ const Drinks = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <div className="bg-black text-white p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold gold-gradient">Coleção de Bebidas</h1>
+            <h1 className="text-3xl font-bold gold-gradient font-felix">Coleção de Bebidas</h1>
             <p className="text-zinc-400 mt-1">
               Gerencie drinks alcoólicos e não alcoólicos para seus menus
             </p>
@@ -49,8 +49,8 @@ const Drinks = () => {
           </Card>
         ) : null}
 
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold silver-accent">
+        <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <h2 className="text-2xl font-semibold silver-accent font-felix">
             Bebidas Cadastradas
           </h2>
           <div className="flex items-center gap-4 text-sm text-zinc-400">

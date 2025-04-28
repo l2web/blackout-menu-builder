@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DrinkDetails {
   id: string;
@@ -17,7 +18,7 @@ interface MenuDrink {
 // Função global para gerar o PDF
 declare global {
   interface Window {
-    generatePDF: (menuName: string, menuDrinks: MenuDrink[]) => Promise<void>;
+    generatePDF: (menuName: string, menuDrinks: MenuDrink[], menuId?: string) => Promise<string>;
   }
 }
 
@@ -31,7 +32,31 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
   });
 };
 
-export const generatePDF = async (menuName: string, menuDrinks: MenuDrink[]) => {
+// Função para forçar o download de um arquivo
+const forceDownload = (blob: Blob, filename: string): void => {
+  // Criar URL temporária
+  const url = window.URL.createObjectURL(blob);
+  
+  // Criar elemento de link invisível
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  
+  // Adicionar à página, clicar e remover
+  document.body.appendChild(link);
+  link.click();
+  
+  // Pequeno timeout para garantir que o navegador inicie o download
+  setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }, 100);
+};
+
+// Renomeando a função para forçar novos imports e evitar cache
+export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], menuId?: string): Promise<string> => {
+  console.log("Gerando novo PDF para menu:", menuName);
+  
   // Configuração do documento
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   
@@ -43,6 +68,23 @@ export const generatePDF = async (menuName: string, menuDrinks: MenuDrink[]) => 
   const margin = 15;
   const headerSpace = 60; // Aumentado para evitar sobreposição com o logo/elementos do topo
   const footerSpace = 10; // Espaço reduzido para o rodapé
+  
+  // Carregar a fonte Felix
+  let felixFontBase64 = '';
+  try {
+    const response = await fetch('/felix.ttf');
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const fontBlob = await response.blob();
+    felixFontBase64 = await blobToBase64(fontBlob);
+    
+    // Extrair a parte Base64 da string
+    const base64Font = felixFontBase64.split(',')[1];
+    // Adicionar a fonte Felix ao PDF
+    doc.addFileToVFS('Felix.ttf', base64Font);
+    doc.addFont('Felix.ttf', 'Felix', 'normal');
+  } catch (error) {
+    console.error("Não foi possível carregar a fonte Felix:", error);
+  }
   
   // Separar drinks por tipo
   const alcoholicDrinks = menuDrinks.filter(item => item.drinks.is_alcoholic || item.drinks.image_url);
@@ -130,7 +172,8 @@ export const generatePDF = async (menuName: string, menuDrinks: MenuDrink[]) => 
     
     // Preparar nome
     doc.setFontSize(nameFontSize);
-    doc.setFont('times', 'bold');
+    // Usar a fonte Felix para os nomes dos drinks
+    doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
     const drinkName = drink.name.toUpperCase();
     
     // Quebrar texto em linhas
@@ -180,7 +223,8 @@ export const generatePDF = async (menuName: string, menuDrinks: MenuDrink[]) => 
     
     // Preparar nome
     doc.setFontSize(nonAlcNameFontSize);
-    doc.setFont('times', 'bold');
+    // Usar a fonte Felix para os nomes dos drinks
+    doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
     const drinkName = drink.name.toUpperCase();
     
     // Quebrar texto em linhas (usando largura menor para centralizar melhor)
@@ -190,26 +234,38 @@ export const generatePDF = async (menuName: string, menuDrinks: MenuDrink[]) => 
     // Altura do nome
     const nameHeight = nameLines.length * (nonAlcNameFontSize * 0.5);
     
-    // Desenhar nome (centralizado)
+    // Desenhar uma pequena decoração antes do nome
+    doc.circle(centerX - (nameWidth / 4), y - 2, 1, 'F');
+    doc.circle(centerX + (nameWidth / 4), y - 2, 1, 'F');
+    
+    // Desenhar nome (centralizado) com destaque
     doc.setTextColor(0, 0, 0);
     doc.text(nameLines, centerX, y, { align: 'center' });
     
     // Preparar descrição
     doc.setFontSize(descFontSize);
     doc.setFont('times', 'normal');
+    doc.setTextColor(50, 50, 50);
     
     // Limitar a descrição conforme necessário
     let drinkDesc = drink.description;
     
     // Quebrar texto da descrição
-    const descWidth = contentWidth * 0.7;
+    const descWidth = contentWidth * 0.6; // Reduzindo um pouco para melhor estética
     const descLines = doc.splitTextToSize(drinkDesc, descWidth);
     
     // Desenhar descrição (centralizada)
     doc.text(descLines, centerX, y + nameHeight + 5, { align: 'center' });
     
+    // Desenhar uma linha sutil abaixo do drink
+    if (descLines.length > 0) {
+      const lineY = y + nameHeight + 5 + (descLines.length * (descFontSize * 0.5)) + 5;
+      doc.setLineWidth(0.2);
+      doc.line(centerX - 30, lineY, centerX + 30, lineY);
+    }
+    
     // Retornar a altura aproximada usada por este drink
-    return nameHeight + descLines.length * (descFontSize * 0.5) + 10;
+    return nameHeight + descLines.length * (descFontSize * 0.5) + 15; // Aumentei o espaço
   };
   
   // Começar a renderizar
@@ -253,10 +309,22 @@ export const generatePDF = async (menuName: string, menuDrinks: MenuDrink[]) => 
   // Renderizar drinks não alcoólicos com o título centralizado
   if (nonAlcoholicDrinks.length > 0) {
     // Adicionar título centralizado "- DRINKS NÃO ALCOÓLICOS -"
-    doc.setFontSize(14);
-    doc.setFont('times', 'bold');
+    doc.setFontSize(16); // Aumento o tamanho da fonte para dar mais destaque
+    // Usar a fonte Felix para o título
+    doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
+    
+    // Adicionar uma linha decorativa acima do título
+    const titleLineWidth = 60; // Comprimento da linha em mm
+    doc.setLineWidth(0.5);
+    doc.line((pageWidth - titleLineWidth) / 2, currentY - 5, (pageWidth + titleLineWidth) / 2, currentY - 5);
+    
+    // Desenhar o título centralizado
     doc.text("— DRINKS NÃO ALCOÓLICOS —", pageWidth / 2, currentY, { align: 'center' });
-    currentY += 20; // Aumentado o espaço após o título
+    
+    // Adicionar uma linha decorativa abaixo do título
+    doc.line((pageWidth - titleLineWidth) / 2, currentY + 5, (pageWidth + titleLineWidth) / 2, currentY + 5);
+    
+    currentY += 25; // Aumentado o espaço após o título
     
     // Renderizar cada drink não alcoólico centralizado
     nonAlcoholicDrinks.forEach((item) => {
@@ -267,19 +335,32 @@ export const generatePDF = async (menuName: string, menuDrinks: MenuDrink[]) => 
   
   // Adicionar rodapé
   doc.setFontSize(8);
+  doc.setFont('times', 'normal');
   doc.setTextColor(0, 0, 0);
   doc.text(`BLACKOUT DRINK BUILDER - ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, pageHeight - 10, { align: "center" });
   doc.text(`Página 1 de 1`, pageWidth - margin, pageHeight - 10, { align: "right" });
   
-  // Salvar e abrir o PDF
+  // Gerar o PDF como blob
   const pdfOutput = doc.output('blob');
-  const pdfUrl = URL.createObjectURL(pdfOutput);
-  window.open(pdfUrl, '_blank');
   
-  // Opção para download
-  const downloadLink = document.createElement('a');
-  downloadLink.href = pdfUrl;
-  downloadLink.download = `${menuName.replace(/\s+/g, '_')}.pdf`;
+  // NOVA ABORDAGEM: Forçar download direto ao invés de salvar no Supabase
+  // Gerar nome de arquivo único
+  const timestamp = new Date().getTime();
+  const fileName = `Cardapio_${menuName.replace(/\s+/g, '_')}_${timestamp}.pdf`;
+  
+  // Forçar o download do arquivo
+  forceDownload(pdfOutput, fileName);
+  
+  // Criar URL de objeto temporária para retornar (para compatibilidade com o resto do código)
+  const tempUrl = URL.createObjectURL(pdfOutput);
+  
+  // Também abrir o PDF em uma nova aba (opcional, já que o download já está acontecendo)
+  window.open(tempUrl, '_blank');
+  
+  return tempUrl;
 };
 
-export default generatePDF;
+// Manter a função original para compatibilidade
+export const generatePDF = generatePDFV2;
+
+export default generatePDFV2;

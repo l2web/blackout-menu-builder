@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { generatePDF } from "@/utils/pdfGenerator";
+import { generatePDFV2 } from "@/utils/pdfGenerator";
 import { deleteMenuViaRPC } from "@/utils/deleteMenuRPC";
 
 interface Menu {
@@ -23,6 +23,7 @@ interface Menu {
   name: string;
   created_at: string;
   drinks_count?: number;
+  pdf_url?: string;
 }
 
 interface MenuWithDrinks extends Menu {
@@ -131,11 +132,20 @@ const MenuList = () => {
         return;
       }
 
-      // Gerar PDF
-      await generatePDF(menuName, menuDrinks);
-      toast.success("PDF gerado com sucesso!");
+      // Mostrar toast informando o usuário
+      toast.loading("Gerando o PDF do cardápio, aguarde...");
+
+      // Gerar PDF e fazer download diretamente
+      await generatePDFV2(menuName, menuDrinks, menuId);
+      
+      toast.dismiss();
+      toast.success("PDF gerado com sucesso! Verifique o download.");
+      
+      // Não precisamos mais atualizar o menu na lista local, pois não salvamos mais no Supabase
+      // Também não precisamos mais abrir o PDF numa nova aba, pois a função já faz isso automaticamente
 
     } catch (error: any) {
+      toast.dismiss();
       console.error("Erro ao gerar PDF:", error);
       toast.error(error?.message || "Erro ao gerar o PDF do menu");
     }
@@ -386,7 +396,7 @@ const MenuList = () => {
                 onClick={() => handleGeneratePDF(menu.id, menu.name)}
               >
                 <FileText size={16} className="mr-2" />
-                Baixar PDF
+                Gerar PDF
               </Button>
               
               <AlertDialog>

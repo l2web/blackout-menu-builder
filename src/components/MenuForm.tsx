@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import DrinkSelector from "@/components/DrinkSelector";
-import { generatePDF } from "@/utils/pdfGenerator";
+import { generatePDFV2 } from "@/utils/pdfGenerator";
 
 // Constantes para os limites
 const MIN_ALCOHOLIC = 2;
@@ -174,12 +174,22 @@ const MenuForm = ({ onComplete }: MenuFormProps) => {
       if (menuDrinksError) throw menuDrinksError;
 
       if (menuDrinks && menuDrinks.length > 0) {
-        await generatePDF(menuName, menuDrinks);
+        // Mostrar toast informando o usuário
+        toast.loading("Gerando o PDF do cardápio, aguarde...");
+        
+        // Gerar PDF e fazer download diretamente
+        await generatePDFV2(menuName, menuDrinks, menuId);
+        
+        toast.dismiss();
+        toast.success("PDF gerado com sucesso! Verifique o download.");
+        
+        // Não precisamos mais abrir o PDF numa nova aba, pois a função já faz isso automaticamente
       } else {
         toast.info("Menu salvo, mas PDF não gerado pois não há drinks selecionados.");
       }
 
     } catch (error: any) {
+      toast.dismiss();
       console.error("Erro ao gerar PDF:", error);
       toast.error(error?.message || "Erro ao gerar o PDF do menu");
     }

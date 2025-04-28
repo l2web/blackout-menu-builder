@@ -68,7 +68,7 @@ const DrinkGrid = ({ drinks, onSelect }: DrinkGridProps) => {
             </div>
           )}
           <CardContent className="p-5">
-            <h3 className="text-xl font-semibold mb-2 gold-gradient">{drink.name}</h3>
+            <h3 className="text-xl font-semibold mb-2 gold-gradient font-felix">{drink.name}</h3>
             
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
