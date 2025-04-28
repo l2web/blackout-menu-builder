@@ -18,6 +18,7 @@ export type Database = {
           is_alcoholic: boolean
           name: string
           updated_at: string | null
+          ingredients: { name: string, quantity: string }[] | null
         }
         Insert: {
           created_at?: string | null
@@ -27,6 +28,7 @@ export type Database = {
           is_alcoholic?: boolean
           name: string
           updated_at?: string | null
+          ingredients?: { name: string, quantity: string }[] | null
         }
         Update: {
           created_at?: string | null
@@ -36,6 +38,7 @@ export type Database = {
           is_alcoholic?: boolean
           name?: string
           updated_at?: string | null
+          ingredients?: { name: string, quantity: string }[] | null
         }
         Relationships: []
       }
