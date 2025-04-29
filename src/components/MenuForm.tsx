@@ -12,10 +12,10 @@ import DrinkSelector from "@/components/DrinkSelector";
 import { generatePDFV3, cleanupPreviousPdfs } from "@/utils/pdfGeneratorV3";
 
 // Constantes para os limites
-const MIN_ALCOHOLIC = 2;
+const MIN_ALCOHOLIC = 1;
 const MAX_ALCOHOLIC = 6;
-const MIN_NON_ALCOHOLIC = 2;
-const MAX_NON_ALCOHOLIC = 2;
+const MIN_NON_ALCOHOLIC = 1;
+const MAX_NON_ALCOHOLIC = 3;
 
 const menuFormSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -34,7 +34,7 @@ const menuFormSchema = z.object({
       return !isNaN(num) && num >= MIN_NON_ALCOHOLIC && num <= MAX_NON_ALCOHOLIC;
     },
     {
-      message: `Quantidade deve ser exatamente ${MIN_NON_ALCOHOLIC} drinks`,
+      message: `Quantidade deve ser entre ${MIN_NON_ALCOHOLIC} e ${MAX_NON_ALCOHOLIC} drinks`,
     }
   ),
 });
@@ -82,8 +82,8 @@ const MenuForm = ({ onComplete }: MenuFormProps) => {
          return;
        }
        
-       if (nonAlcoholicCountNum !== MIN_NON_ALCOHOLIC) {
-         toast.error(`Selecione exatamente ${MIN_NON_ALCOHOLIC} drinks não alcoólicos.`);
+       if (nonAlcoholicCountNum < MIN_NON_ALCOHOLIC || nonAlcoholicCountNum > MAX_NON_ALCOHOLIC) {
+         toast.error(`Selecione entre ${MIN_NON_ALCOHOLIC} e ${MAX_NON_ALCOHOLIC} drinks não alcoólicos.`);
          return;
        }
        
@@ -273,13 +273,12 @@ const MenuForm = ({ onComplete }: MenuFormProps) => {
                        <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
-                        disabled={true} // Desabilitado já que é sempre 2
                       >
                         <SelectTrigger className="bg-zinc-800 border-zinc-700">
                           <SelectValue placeholder="Selecione a quantidade" />
                         </SelectTrigger>
                         <SelectContent>
-                          {[MIN_NON_ALCOHOLIC].map((num) => (
+                          {Array.from({ length: MAX_NON_ALCOHOLIC - MIN_NON_ALCOHOLIC + 1 }, (_, i) => MIN_NON_ALCOHOLIC + i).map((num) => (
                             <SelectItem key={num} value={num.toString()}>
                               {num}
                             </SelectItem>
@@ -287,7 +286,6 @@ const MenuForm = ({ onComplete }: MenuFormProps) => {
                         </SelectContent>
                       </Select>
                     </FormControl>
-                    <p className="text-xs text-zinc-400 mt-1">Obrigatório selecionar {MIN_NON_ALCOHOLIC} drinks não alcoólicos.</p>
                     <FormMessage />
                   </FormItem>
                 )}
