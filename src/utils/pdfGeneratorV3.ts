@@ -205,10 +205,10 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
   // Definir alturas para cada seção
   // Altura total disponível menos 15mm de espaço entre seções
   const alcSection = totalAlcoholicDrinks > 0 ? 
-    (availableHeight * 0.75) : 0; // 75% para alcoólicos quando ambos estão presentes
+    (availableHeight * 0.55) : 0; // 55% para alcoólicos quando ambos estão presentes (antes era 60%)
 
   const nonAlcSection = totalNonAlcoholicDrinks > 0 ? 
-    (availableHeight * 0.25) : 0; // 25% para não alcoólicos quando ambos estão presentes
+    (availableHeight * 0.45) : 0; // 45% para não alcoólicos quando ambos estão presentes (antes era 40%)
   
   // Layout em 2 colunas para drinks alcoólicos
   const columns = 2;
@@ -222,9 +222,11 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     (nonAlcSection / totalNonAlcoholicDrinks) : 0;
   
   // Tamanhos de fonte ajustados para caber mais conteúdo
-  const nameFontSize = 12; // Tamanho fixo para nomes
-  const descFontSize = 8;  // Tamanho fixo para descrições
-  const nonAlcNameFontSize = 12; // Reduzido de 14 para 12 para economizar espaço
+  const nameFontSize = 14; // Aumentado de 12 para 14 para os títulos dos drinks alcoólicos
+  const descFontSize = 12;  // Aumentado de 8 para 12 para drinks alcoólicos
+  // Ajuste do tamanho de fonte para drinks não alcoólicos baseado na quantidade
+  const nonAlcNameFontSize = nonAlcoholicDrinks.length > 2 ? 20 : 24; // Dobro do tamanho anterior
+  const nonAlcDescFontSize = nonAlcoholicDrinks.length > 2 ? 10 : 12; // Tamanho reduzido para a descrição
   
   // Tamanho da imagem otimizado
   const imageSize = Math.min(45, spacePerAlcItem * 0.85); // Imagem menor para caber mais itens
@@ -350,26 +352,24 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     doc.text(nameLines, centerX, y, { align: 'center' });
     
     // Preparar descrição
-    doc.setFontSize(descFontSize);
+    doc.setFontSize(nonAlcDescFontSize);
     doc.setFont('times', 'normal');
     doc.setTextColor(50, 50, 50);
     
     // Limitar a descrição conforme necessário
     let drinkDesc = drink.description;
-    // Opcionalmente, limitar tamanho da descrição para economizar espaço
-    if (drinkDesc.length > 100) {
-      drinkDesc = drinkDesc.substring(0, 97) + "...";
-    }
-    
+    // Não limitar mais o tamanho da descrição, exibir completa
     // Quebrar texto da descrição
-    const descWidth = contentWidth * 0.6; // Reduzindo um pouco para melhor estética
+    const descWidth = contentWidth * 0.75; // Aumentado de 0.6 para 0.75 para acomodar textos maiores
     const descLines = doc.splitTextToSize(drinkDesc, descWidth);
     
-    // Desenhar descrição (centralizada) - reduzir espaço entre nome e descrição
-    doc.text(descLines, centerX, y + nameHeight + 3, { align: 'center' }); // Reduzido de 5 para 3
+    // Desenhar descrição (centralizada) - aproximar muito título e descrição
+    doc.text(descLines, centerX, y + nameHeight + 0.5, { align: 'center' }); // Reduzido de 1 para 0.5
     
-    // Reduzir a altura retornada para compactar o layout ainda mais
-    return nameHeight + descLines.length * (descFontSize * 0.5) + 6; // Reduzido de 10 para 6
+    // Ajustar a altura retornada para comportar descrições completas
+    const spacingFactor = nonAlcoholicDrinks.length > 2 ? 3 : 6; // Mantido como estava
+    // Calcular altura com base no número real de linhas da descrição
+    return nameHeight + descLines.length * (nonAlcDescFontSize * 0.5) + spacingFactor;
   };
   
   // Começar a renderizar
@@ -407,39 +407,35 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     });
     
     // Atualizar Y global para o maior valor entre as colunas
-    currentY = Math.max(leftColY, rightColY) + 15; // Aumentado o espaço antes da seção de drinks não alcoólicos
+    currentY = Math.max(leftColY, rightColY) + 25; // Aumentado de 15 para 25 para adicionar uma quebra de linha
   }
   
   // Renderizar drinks não alcoólicos com o título centralizado
   if (nonAlcoholicDrinks.length > 0) {
-    // Aproximar mais os drinks não alcoólicos dos alcoólicos
-    currentY -= 20; // Diminuir em 20 unidades (antes era 15)
-  
-    // Adicionar título centralizado "- DRINKS NÃO ALCOÓLICOS -"
-    doc.setFontSize(12); // Reduzido para 12 (antes era 14)
+    // Aproximar mais os drinks não alcoólicos dos alcoólicos - ajustar com base na quantidade
+    currentY -= 20; // Mantida a aproximação original
+    
+    // Título central com tamanho dobrado e ajustado conforme a quantidade de drinks
+    const titleFontSize = nonAlcoholicDrinks.length > 2 ? 20 : 24; // Dobro do tamanho anterior
+    doc.setFontSize(titleFontSize);
     // Usar a fonte Felix para o título
     doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
     
     // Desenhar o título centralizado
     doc.text("— DRINKS NÃO ALCOÓLICOS —", pageWidth / 2, currentY, { align: 'center' });
     
-    // Reduzir o espaço após o título
-    currentY += 6; // Reduzido para 6 (antes era 8)
+    // Reduzir o espaço após o título - ajustar com base na quantidade de drinks
+    const titleSpacing = nonAlcoholicDrinks.length > 2 ? 8 : 12; // Dobro do espaçamento anterior
+    currentY += titleSpacing;
     
-    // Renderizar cada drink não alcoólico centralizado com menos espaço entre eles
+    // Renderizar cada drink não alcoólico centralizado com espaço otimizado
     nonAlcoholicDrinks.forEach((item, index) => {
       const drinkHeight = drawNonAlcoholicDrink(item.drinks, currentY);
-      // Reduzir ainda mais o espaço entre os drinks não alcoólicos
-      currentY += drinkHeight + 2; // Reduzido para 2 (antes era 3)
+      // Espaçamento normal entre drinks não alcoólicos
+      const drinkSpacing = nonAlcoholicDrinks.length > 2 ? 4 : 6; // Espaçamento normal para manter um abaixo do outro
+      currentY += drinkHeight + drinkSpacing;
     });
   }
-  
-  // Adicionar rodapé
-  doc.setFontSize(8);
-  doc.setFont('times', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(`BLACKOUT DRINK BUILDER - ${new Date().toLocaleDateString('pt-BR')} - ID: ${pdfHash.substring(0, 8)}`, pageWidth / 2, pageHeight - 10, { align: "center" });
-  doc.text(`Página 1 de 1 | V3`, pageWidth - margin, pageHeight - 10, { align: "right" });
   
   // Gerar o PDF como blob
   const pdfOutput = doc.output('blob');
