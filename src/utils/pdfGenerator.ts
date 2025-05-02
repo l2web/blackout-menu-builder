@@ -142,7 +142,7 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
   doc.setProperties({
     title: `Cardápio ${menuName}`,
     subject: 'Menu de Drinks',
-    creator: 'Blackout Drink Builder',
+    creator: 'Blackout Menu Builder',
     author: 'Sistema Automatizado',
     keywords: `menu, drinks, ${pdfHash}`,
   });
@@ -428,7 +428,7 @@ export const generatePDFV2 = async (menuName: string, menuDrinks: MenuDrink[], m
   doc.setFontSize(8);
   doc.setFont('times', 'normal');
   doc.setTextColor(0, 0, 0);
-  doc.text(`BLACKOUT DRINK BUILDER - ${new Date().toLocaleDateString('pt-BR')} - ID: ${pdfHash.substring(0, 8)}`, pageWidth / 2, pageHeight - 10, { align: "center" });
+  doc.text(`BLACKOUT MENU BUILDER - ${new Date().toLocaleDateString('pt-BR')} - ID: ${pdfHash.substring(0, 8)}`, pageWidth / 2, pageHeight - 10, { align: "center" });
   doc.text(`Página 1 de 1`, pageWidth - margin, pageHeight - 10, { align: "right" });
   
   // Gerar o PDF como blob

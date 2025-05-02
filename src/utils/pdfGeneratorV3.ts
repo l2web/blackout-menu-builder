@@ -145,7 +145,7 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
   doc.setProperties({
     title: `Cardápio ${menuName} (V3)`,
     subject: 'Menu de Drinks',
-    creator: 'Blackout Drink Builder V3',
+    creator: 'Blackout Menu Builder V3',
     author: 'Sistema Automatizado',
     keywords: `menu, drinks, ${pdfHash}, v3`,
   });
@@ -176,6 +176,25 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     console.log("V3: Fonte Felix carregada com sucesso");
   } catch (error) {
     console.error("V3: Não foi possível carregar a fonte Felix:", error);
+  }
+  
+  // Carregar a fonte Garamond
+  let garamondFontBase64 = '';
+  try {
+    const cacheBreaker = `${pdfHash}_${Date.now()}`;
+    const response = await fetch(`/garamond.ttf?nocache=${cacheBreaker}`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const fontBlob = await response.blob();
+    garamondFontBase64 = await blobToBase64(fontBlob);
+    
+    // Extrair a parte Base64 da string
+    const base64Font = garamondFontBase64.split(',')[1];
+    // Adicionar a fonte Garamond ao PDF
+    doc.addFileToVFS('Garamond.ttf', base64Font);
+    doc.addFont('Garamond.ttf', 'Garamond', 'normal');
+    console.log("V3: Fonte Garamond carregada com sucesso");
+  } catch (error) {
+    console.error("V3: Não foi possível carregar a fonte Garamond:", error);
   }
   
   // Separar drinks por tipo
@@ -223,7 +242,7 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
   
   // Tamanhos de fonte ajustados para caber mais conteúdo
   const nameFontSize = 14; // Aumentado de 12 para 14 para os títulos dos drinks alcoólicos
-  const descFontSize = 12;  // Aumentado de 8 para 12 para drinks alcoólicos
+  const descFontSize = 10;  // Diminuído de 12 para 10 para drinks alcoólicos
   // Ajuste do tamanho de fonte para drinks não alcoólicos baseado na quantidade
   const nonAlcNameFontSize = nonAlcoholicDrinks.length > 2 ? 20 : 24; // Dobro do tamanho anterior
   const nonAlcDescFontSize = nonAlcoholicDrinks.length > 2 ? 10 : 12; // Tamanho reduzido para a descrição
@@ -275,13 +294,25 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
   }
   
   // Função para exibir drink alcoólico na coluna específica
-  const drawAlcoholicDrink = (drink: DrinkDetails, x: number, y: number, maxWidth: number) => {
+  const drawAlcoholicDrink = (drink: DrinkDetails, x: number, y: number, maxWidth: number, invertLayout: boolean = false) => {
     const drinkImageBase64 = drinkImagesBase64[drink.id];
     
-    // Posicionar texto e imagem
-    const imageX = x;
-    const textX = x + (drinkImageBase64 ? imageSize + 5 : 0);
-    const textWidth = maxWidth - (drinkImageBase64 ? imageSize + 5 : 0);
+    // Posicionar texto e imagem - inverter para drinks pares
+    let imageX, textX, textWidth;
+    
+    if (invertLayout) {
+      // Layout invertido: imagem à direita, texto à esquerda
+      imageX = x + maxWidth - imageSize;
+      textX = x;
+      // Aumentar ligeiramente a largura disponível para o texto
+      textWidth = maxWidth - imageSize - 1; // Reduzido de 2 para 1 para ganhar espaço
+    } else {
+      // Layout padrão: imagem à esquerda, texto à direita
+      imageX = x;
+      textX = x + (drinkImageBase64 ? imageSize + 1 : 0); // Reduzido de 2 para 1
+      // Aumentar ligeiramente a largura disponível para o texto
+      textWidth = maxWidth - (drinkImageBase64 ? imageSize + 1 : 0); // Reduzido de 2 para 1
+    }
     
     // Preparar nome
     doc.setFontSize(nameFontSize);
@@ -295,25 +326,45 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     // Altura do nome
     const nameHeight = nameLines.length * (nameFontSize * 0.5);
     
-    // Desenhar nome
-    doc.setTextColor(0, 0, 0);
-    doc.text(nameLines, textX, y + 5);
-    
-    // Preparar descrição
-    doc.setFontSize(descFontSize);
-    doc.setFont('times', 'normal');
-    
     // Limitar a descrição a um número máximo de caracteres para garantir que caiba
     let drinkDesc = drink.description;
     if (drinkDesc.length > 150) {
       drinkDesc = drinkDesc.substring(0, 147) + "...";
     }
     
-    // Quebrar texto da descrição
+    // Quebrar texto da descrição para calcular altura total
+    doc.setFontSize(descFontSize);
     const descLines = doc.splitTextToSize(drinkDesc, textWidth);
+    const descHeight = descLines.length * (descFontSize * 0.5);
     
-    // Desenhar descrição
-    doc.text(descLines, textX, y + nameHeight + 8);
+    // Calcular altura total do elemento combinado (título + descrição + espaçamento entre eles)
+    const totalTextHeight = nameHeight + descHeight + 2; // 2 é o espaçamento entre título e descrição
+    
+    // Calcular ajuste para centralizar verticalmente em relação à imagem
+    let verticalAdjustment = 0;
+    if (drinkImageBase64 && totalTextHeight < imageSize) {
+      // Centralizar texto em relação à altura da imagem
+      verticalAdjustment = (imageSize - totalTextHeight) / 2;
+    }
+    
+    // Aplicar ajuste vertical mantendo os mesmos espaçamentos internos
+    const adjustedY = y + verticalAdjustment;
+    
+    // Alinhamento do texto - para layout invertido, alinhar à direita (mais próximo da imagem)
+    const textAlign = invertLayout ? 'right' : 'left';
+    const actualTextX = invertLayout ? imageX - 1 : textX; // Ajustado de 2 para 1 para manter proximidade
+    
+    // Combinando título e descrição em um único desenho centralizado verticalmente com a imagem
+    // Desenhar o título
+    doc.setFontSize(nameFontSize);
+    doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(nameLines, actualTextX, adjustedY + 5, { align: textAlign });
+    
+    // Desenhar a descrição mantendo o mesmo espaçamento
+    doc.setFontSize(descFontSize);
+    doc.setFont(garamondFontBase64 ? 'Garamond' : 'times', 'normal');
+    doc.text(descLines, actualTextX, adjustedY + nameHeight + 2, { align: textAlign });
     
     // Desenhar imagem
     if (drinkImageBase64) {
@@ -353,7 +404,7 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     
     // Preparar descrição
     doc.setFontSize(nonAlcDescFontSize);
-    doc.setFont('times', 'normal');
+    doc.setFont(garamondFontBase64 ? 'Garamond' : 'times', 'normal');
     doc.setTextColor(50, 50, 50);
     
     // Limitar a descrição conforme necessário
@@ -363,8 +414,12 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     const descWidth = contentWidth * 0.75; // Aumentado de 0.6 para 0.75 para acomodar textos maiores
     const descLines = doc.splitTextToSize(drinkDesc, descWidth);
     
-    // Desenhar descrição (centralizada) - aproximar muito título e descrição
-    doc.text(descLines, centerX, y + nameHeight + 0.5, { align: 'center' }); // Reduzido de 1 para 0.5
+    // Usar um valor NEGATIVO para colocar a descrição imediatamente após o título
+    // Isso vai fazer com que não haja espaço entre eles
+    const titleDescSpacing = -2; // Valor negativo para sobrepor ligeiramente e compensar qualquer espaçamento automático
+    
+    // Desenhar descrição (centralizada) - praticamente colada ao título
+    doc.text(descLines, centerX, y + nameHeight + titleDescSpacing, { align: 'center' });
     
     // Ajustar a altura retornada para comportar descrições completas
     const spacingFactor = nonAlcoholicDrinks.length > 2 ? 3 : 6; // Mantido como estava
@@ -391,11 +446,15 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
       const x = isLeftColumn ? leftColX : rightColX;
       const y = isLeftColumn ? leftColY : rightColY;
       
+      // Verificar se é par (índice 1, 3, 5) para inverter layout
+      const isEven = index % 2 === 1; // Índice 1, 3, 5... são os pares na ordem de exibição (2º, 4º, 6º)
+      
       const drinkHeight = drawAlcoholicDrink(
         item.drinks, 
         x, 
         y, 
-        columnWidth - 10 // Deixar margem entre colunas
+        columnWidth - 10, // Deixar margem entre colunas
+        isEven // Passar flag para indicar se é par
       );
       
       // Atualizar posição Y da coluna usada
@@ -416,7 +475,7 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     currentY -= 20; // Mantida a aproximação original
     
     // Título central com tamanho dobrado e ajustado conforme a quantidade de drinks
-    const titleFontSize = nonAlcoholicDrinks.length > 2 ? 20 : 24; // Dobro do tamanho anterior
+    const titleFontSize = 24; // Tamanho fixo para o título
     doc.setFontSize(titleFontSize);
     // Usar a fonte Felix para o título
     doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
@@ -424,17 +483,108 @@ export const generatePDFV3 = async (menuName: string, menuDrinks: MenuDrink[], m
     // Desenhar o título centralizado
     doc.text("— DRINKS NÃO ALCOÓLICOS —", pageWidth / 2, currentY, { align: 'center' });
     
-    // Reduzir o espaço após o título - ajustar com base na quantidade de drinks
-    const titleSpacing = nonAlcoholicDrinks.length > 2 ? 8 : 12; // Dobro do espaçamento anterior
+    // Espaço após o título
+    const titleSpacing = 12;
     currentY += titleSpacing;
     
-    // Renderizar cada drink não alcoólico centralizado com espaço otimizado
+    // NOVA ABORDAGEM: Calcular posições de baixo para cima
+    // Definir um ponto de partida fixo a partir do fundo (deixando margem de segurança)
+    const bottomMargin = 30; // Margem de segurança no fundo da página
+    const bottomPosition = pageHeight - bottomMargin;
+    
+    // Calcular o tamanho total necessário para todos os drinks não alcoólicos
+    let totalNonAlcHeight = 0;
+    
+    // Espaçamento uniforme entre drinks não alcoólicos
+    const uniformSpacing = 5; // Reduzido de 15 para 5 - espaçamento mais curto mas ainda uniforme
+    
+    // Definir valor de sobreposição para aproximar título e descrição
+    const titleDescOverlap = -2; // Valor negativo para aproximação máxima
+    
+    // Calcular alturas individualmente
+    const drinkHeights = [];
+    for (const item of nonAlcoholicDrinks) {
+      // Preparar nome
+      doc.setFontSize(24); // Tamanho fixo para títulos dos drinks
+      doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
+      const nameLines = doc.splitTextToSize(item.drinks.name.toUpperCase(), contentWidth * 0.7);
+      const nameHeight = nameLines.length * (24 * 0.5);
+      
+      // Preparar descrição
+      doc.setFontSize(12); // Tamanho fixo para descrições dos drinks
+      doc.setFont(garamondFontBase64 ? 'Garamond' : 'times', 'normal');
+      const descLines = doc.splitTextToSize(item.drinks.description, contentWidth * 0.75);
+      const descHeight = descLines.length * (12 * 0.5);
+      
+      // Altura total deste drink + um espaçamento fixo pequeno
+      // Usar valor negativo para aproximar título e descrição ao máximo
+      const drinkHeight = nameHeight + descHeight + titleDescOverlap;
+      drinkHeights.push(drinkHeight);
+      
+      totalNonAlcHeight += drinkHeight;
+    }
+    
+    // Adicionar espaçamento uniforme entre os drinks (exceto após o último)
+    if (nonAlcoholicDrinks.length > 1) {
+      totalNonAlcHeight += uniformSpacing * (nonAlcoholicDrinks.length - 1);
+    }
+    
+    // Calcular a posição Y inicial para começar a renderizar de baixo para cima
+    let startY = bottomPosition - totalNonAlcHeight;
+    
+    // Limitar startY para não ultrapassar a posição atual se já estiver muito abaixo
+    startY = Math.max(startY, currentY);
+    
+    // Renderizar todos os drinks não alcoólicos em sequência
+    let drinkY = startY;
+    
     nonAlcoholicDrinks.forEach((item, index) => {
-      const drinkHeight = drawNonAlcoholicDrink(item.drinks, currentY);
-      // Espaçamento normal entre drinks não alcoólicos
-      const drinkSpacing = nonAlcoholicDrinks.length > 2 ? 4 : 6; // Espaçamento normal para manter um abaixo do outro
-      currentY += drinkHeight + drinkSpacing;
+      // Altura deste drink
+      const drinkHeight = drinkHeights[index];
+      
+      // Preparar nome
+      doc.setFontSize(24);
+      doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const drinkName = item.drinks.name.toUpperCase();
+      const nameLines = doc.splitTextToSize(drinkName, contentWidth * 0.7);
+      const nameHeight = nameLines.length * (24 * 0.5);
+      
+      // Preparar descrição
+      doc.setFontSize(12);
+      doc.setFont(garamondFontBase64 ? 'Garamond' : 'times', 'normal');
+      doc.setTextColor(50, 50, 50);
+      const descLines = doc.splitTextToSize(item.drinks.description, contentWidth * 0.75);
+      const descHeight = descLines.length * (12 * 0.5);
+      
+      // Calcular altura total do elemento combinado (título + descrição + espaçamento entre eles)
+      const totalElementHeight = nameHeight + descHeight + titleDescOverlap;
+      
+      // Desenhar título e descrição como um elemento único
+      // Primeiro o título
+      doc.setFontSize(24);
+      doc.setFont(felixFontBase64 ? 'Felix' : 'times', 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.text(nameLines, pageWidth / 2, drinkY, { align: 'center' });
+      
+      // Depois a descrição, extremamente próxima
+      doc.setFontSize(12);
+      doc.setFont(garamondFontBase64 ? 'Garamond' : 'times', 'normal');
+      doc.setTextColor(50, 50, 50);
+      // Usar valor negativo para aproximar ao máximo título e descrição
+      doc.text(descLines, pageWidth / 2, drinkY + nameHeight + titleDescOverlap, { align: 'center' });
+      
+      // Atualizar posição Y para o próximo drink com espaçamento uniforme
+      drinkY += totalElementHeight;
+      
+      // Adicionar espaçamento uniforme apenas se não for o último drink
+      if (index < nonAlcoholicDrinks.length - 1) {
+        drinkY += uniformSpacing;
+      }
     });
+    
+    // Atualizar a posição Y global para o final da seção
+    currentY = drinkY;
   }
   
   // Gerar o PDF como blob

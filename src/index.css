@@ -11,6 +11,15 @@
   font-display: swap;
 }
 
+/* Carregamento da fonte Garamond */
+@font-face {
+  font-family: 'Garamond';
+  src: url('/garamond.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: 0 0% 9%;
@@ -123,6 +132,12 @@
   letter-spacing: 0.02em;
 }
 
+/* Classe para aplicar a fonte Garamond */
+.font-garamond {
+  font-family: 'Garamond', serif;
+  letter-spacing: 0.01em;
+}
+
 /* Estilos personalizados */
 .silver-card {
   background: linear-gradient(
@@ -207,6 +222,8 @@
   transform: rotate(30deg);
   animation: shine 3s infinite ease-in-out;
   opacity: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .shine-effect:hover:after {
